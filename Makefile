@@ -2,7 +2,7 @@ bogosort.exe: bogosort.o pcg_basic.o
 	gcc bogosort.o pcg_basic.o -o bogosort.exe
 
 clean:
-	rm -f *.o
+	rm -rf *.o
 
 bogosort.o: bogosort.c
 	gcc -c -Wall bogosort.c -o bogosort.o
