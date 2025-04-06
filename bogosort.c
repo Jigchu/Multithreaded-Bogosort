@@ -2,17 +2,26 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "pcg_basic.h"
 
-uint64_t bogosort(int *array, int length);
+#define INVALID_USE_MESSAGE "./bogosort [ARRAY LENGTH] -t [NUMBER OF THREADS]\n"
+
+void *bogosort_wrapper(void *args);
+uint64_t *bogosort(int **args);
 void shuffle(pcg32_random_t *rng, int *array, int length);
 bool sorted(int *array, int length, bool ascending);
 bool ascending_comparison(int x, int y);
 bool descending_comparison(int x, int y);
 
-#define INVALID_USE_MESSAGE "./bogosort [ARRAY LENGTH] -t [NUMBER OF THREADS]\n"
+struct bogosort_args {
+    int *array;
+    int length;
+};
+
+bool SORTED = false;
 
 int main(int argc, const char *argv[]) {
     if (argc != 4) {
@@ -20,55 +29,120 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
 
-    if (argv[2] != "-t") {
+    if (strcasecmp(argv[2], "-t")) {
         printf(INVALID_USE_MESSAGE);
         return 1;
     }
-
+    
     int array_length = atoi(argv[1]);
     if (array_length == 0) {
         printf(INVALID_USE_MESSAGE);
         return 1;
     }
-
+    
     int number_of_threads = atoi(argv[3]);
     if (number_of_threads == 0) {
         printf(INVALID_USE_MESSAGE);
         return 1;
     }
-
+    
     int *initial_array = malloc(array_length * sizeof(int));
     if (initial_array == NULL) {
         printf("Can't allocate memory");
         return 1;
     }
-
+    
     for (int i = 0; i < array_length; i++) {
         initial_array[i] = i + 1;
     }
-
+    
     pcg32_random_t s;
     pcg32_srandom_r(&s, time(NULL) ^ (intptr_t)&printf, (intptr_t)&array_length);
     shuffle(&s, initial_array, array_length);
+    
+    // One list per thread
+    int *array_matrix[number_of_threads];
+    for (int i = 0; i < number_of_threads; i++) {
+        array_matrix[i] = malloc(array_length * sizeof(int));
+        if (array_matrix[i] == NULL) {
+            printf("Can't allocate memory");
+            return 1;
+        }
+        
+        for (int j = 0; j < array_length; j++) {
+            array_matrix[i][j] = initial_array[j];
+        }
+    }
+    
+    pthread_t thread_ids[number_of_threads];
 
-    uint64_t tries = bogosort(initial_array, array_length);
-    printf("Sorted in %llu tries\n", tries);
+    for (int i = 0; i < number_of_threads; i++) {
+        int **func_args = malloc(sizeof(int *) * 2);
+        if (func_args == NULL) {
+            printf("Can't allocate memory");
+            return 1;
+        }
+        func_args[0] = array_matrix[i];
+        func_args[1] = &array_length;
+
+        thread_ids[i] = pthread_create(&thread_ids[i], NULL, &bogosort_wrapper, func_args);
+    }
+
+    // Wait for the sorting to complete
+    while (!SORTED) {
+        continue;
+    }
+
+    uint64_t tries_per_thread[number_of_threads];
+    for (int i = 0; i < number_of_threads; i++) {
+        uint64_t *retval;
+        pthread_join(thread_ids[i], (void **) &retval);
+        tries_per_thread[i] = retval == NULL ? 0 : *retval;
+    }
+
+    uint64_t total_tries;
+    for (int i = 0; i < number_of_threads; i++) {
+        total_tries += tries_per_thread[i];
+    }
+
+    printf("Original Array: [");
+    for (int i = 0; i < array_length; i++) {
+        printf("%i", initial_array[i]);
+        if ((i+1) != array_length) {
+            printf(" ");
+        }
+    }
+    printf("]\n");
+    printf("Sorted in %llu tries\n", total_tries);
 
     return 0;
 }
 
-uint64_t bogosort(int *array, int length) {
+void *bogosort_wrapper(void *args) {
+    pthread_exit(bogosort(args));
+    return NULL;
+}
+
+uint64_t *bogosort(int **args) {
+    int *array = args[0];
+    int length = args[1][0];
+
     pcg32_random_t seed;
     pcg32_srandom_r(&seed, time(NULL) ^ (intptr_t)&printf, (intptr_t)&length);
-    uint64_t tries = 0;
+    uint64_t *tries = malloc(sizeof(uint64_t));
+    if (tries == NULL) {
+        return NULL;
+    }
+    *tries = 0;
 
     while (true) {
-        if (sorted(array, length, true)) {
+        if (SORTED || sorted(array, length, true)) {
+            SORTED = true;
             return tries;
         }
 
         shuffle(&seed, array, length);
-        tries++;
+        (*tries)++;
     }
 }
 
