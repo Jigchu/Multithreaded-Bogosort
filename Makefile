@@ -1,5 +1,5 @@
 bogosort.exe: bogosort.o pcg_basic.o
-	gcc bogosort.o pcg_basic.o -pthread -o bogosort.exe
+	gcc -g bogosort.o pcg_basic.o -pthread -o bogosort.exe
 
 clean:
 	rm -rf *.o
