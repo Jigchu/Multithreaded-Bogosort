@@ -16,11 +16,12 @@ typedef struct bogosort_args {
 } bogosort_args;
 
 void *bogosort_wrapper(void *args);
-uint64_t bogosort(bogosort_args *args);
+uint64_t *bogosort(bogosort_args *args);
 void shuffle(pcg32_random_t *rng, int *array, int length);
 bool sorted(int *array, int length, bool ascending);
 bool ascending_comparison(int x, int y);
 bool descending_comparison(int x, int y);
+int number_of_digits(uint64_t x);
 
 
 bool SORTED = false;
@@ -36,13 +37,13 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
     
-    int array_length = atoi(argv[1]);
+    int array_length = strtod(argv[1], NULL);
     if (array_length == 0) {
         printf(INVALID_USE_MESSAGE);
         return 1;
     }
     
-    int number_of_threads = atoi(argv[3]);
+    int number_of_threads = strtod(argv[3], NULL);
     if (number_of_threads == 0) {
         printf(INVALID_USE_MESSAGE);
         return 1;
@@ -79,43 +80,41 @@ int main(int argc, const char *argv[]) {
             printf("Can't allocate memory\n");
             return 1;
         }
-        
         for (int j = 0; j < array_length; j++) {
             array_matrix[i][j] = initial_array[j];
         }
     }
-
+    
     free(initial_array);    // We done using this
     
     pthread_t thread_ids[number_of_threads];
     bogosort_args *func_args[number_of_threads];
-
+    
     for (int i = 0; i < number_of_threads; i++) {
         func_args[i] = malloc(sizeof(bogosort_args));
         if (func_args[i] == NULL) {
             printf("Can't allocate memory\n");
             return 1;
         }
-
+        
         func_args[i]->array = array_matrix[i];
         func_args[i]->length = array_length;
         pthread_create(&thread_ids[i], NULL, &bogosort_wrapper, func_args[i]);
     }
-
+    
     // Wait for the sorting to complete
     while (!SORTED) {
         continue;
     }
-
+    
     uint64_t *tries_per_thread[number_of_threads];
     for (int i = 0; i < number_of_threads; i++) {
         pthread_join(thread_ids[i], (void **) &tries_per_thread[i]);
     }
-
-    uint64_t total_tries = 0;
+    
+    uint64_t total_tries;
     for (int i = 0; i < number_of_threads; i++) {
-        uint64_t *tries_ptr = tries_per_thread[i];
-        total_tries += tries_ptr == NULL ? 0 : *tries_ptr;
+        total_tries += (tries_per_thread[i] == NULL) ? 0 : *tries_per_thread[i];
     }
 
     printf("Sorted!\n\n");
@@ -131,45 +130,67 @@ int main(int argc, const char *argv[]) {
         }
         printf("]\n");
     }
+    
+    int tries_size = number_of_digits(total_tries);
 
-    printf("\nSorted in %llu tries\n", total_tries);
+    int tries_str_length = ((tries_size % 3) == 0 ? -1 : 0)
+                           + (tries_size / 3) + tries_size;
+
+    char tries_str[tries_str_length+1];
+    tries_str[tries_str_length] = '\0';
+
+    char buffer[tries_size+1];
+    snprintf(buffer, ((tries_size+1) * sizeof(char)), "%llu", total_tries);
+
+    int offset = 0; int comma_count = 0;
+    for (int i = 1; i <= tries_str_length; i++) {
+        char digit = buffer[tries_size-(i-offset)];
+        comma_count++;
+        
+        if (comma_count == 4) {
+            digit = ',';
+            comma_count = 0;
+            offset++; 
+        }
+
+        tries_str[tries_str_length-i] = digit;
+    }
+
+    printf("\nSorted in %s tries\n", tries_str);
 
     for (int i = 0; i < number_of_threads; i++) {
         free(func_args[i]); free(array_matrix[i]);
-        free(tries_per_thread[i]); //free(tries_str);
+        free(tries_per_thread[i]); 
     }
 
     return 0;
 }
 
 void *bogosort_wrapper(void *args) {
-    uint64_t tries = bogosort(args);
-    uint64_t *tries_ptr = malloc(sizeof(uint64_t));
-    if (tries_ptr == NULL) {
-        return NULL;
-    }
-    *tries_ptr = tries;
-
-    pthread_exit(tries_ptr);
+    pthread_exit(bogosort(args));
     return NULL;
 }
 
-uint64_t bogosort(bogosort_args *args) {
+uint64_t *bogosort(bogosort_args *args) {
     int *array = args->array;
     int length = args->length;
-
+    
     pcg32_random_t seed;
     pcg32_srandom_r(&seed, time(NULL) ^ (intptr_t)&printf, (intptr_t)&length);
-    uint64_t tries = 0;
-
+    uint64_t *tries = malloc(sizeof(uint64_t));
+    if (tries == NULL) {
+        return NULL;
+    }
+    *tries = 0;
+    
     while (true) {
         if (SORTED || sorted(array, length, true)) {
             SORTED = true;
             break;
         }
-
+        
         shuffle(&seed, array, length);
-        tries++;
+        (*tries)++;
     }
     
     return tries;
@@ -183,7 +204,7 @@ void shuffle(pcg32_random_t *rng, int *array, int length) {
         array[i] = array[swapped_index];
         array[swapped_index] = tmp;
     }
-
+    
     return;
 }
 
@@ -194,7 +215,7 @@ bool sorted(int *array, int length, bool ascending) {
             return false;
         }
     }
-
+    
     return true;
 }
 
@@ -204,4 +225,15 @@ bool ascending_comparison(int x, int y) {
 
 bool descending_comparison(int x, int y) {
     return x > y;
+}
+
+int number_of_digits(uint64_t x) {
+    int digits = 0;
+
+    while (x != 0) {
+        x = x / 10;
+        digits++;
+    }
+
+    return digits;
 }
