@@ -1,3 +1,4 @@
+#include <gmp.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -68,7 +69,7 @@ int main(int argc, const char *argv[]) {
             printf(" ");
         }
     }
-    printf("]\n");
+    printf("]\n\n");
     
     // One list per thread
     int *array_matrix[number_of_threads];
@@ -117,8 +118,9 @@ int main(int argc, const char *argv[]) {
         total_tries += tries_ptr == NULL ? 0 : *tries_ptr;
     }
 
-    printf("Sorted in %llu tries\n", total_tries);
+    printf("Sorted!\n\n");
 
+    printf("Arrays in each Thread:\n");
     for (int i = 0; i < number_of_threads; i++) {
         printf("Thread %llu: [", thread_ids[i]);
         for (int j = 0; j < array_length; j++) {
@@ -130,9 +132,11 @@ int main(int argc, const char *argv[]) {
         printf("]\n");
     }
 
+    printf("\nSorted in %llu tries\n", total_tries);
+
     for (int i = 0; i < number_of_threads; i++) {
         free(func_args[i]); free(array_matrix[i]);
-        free(tries_per_thread[i]);
+        free(tries_per_thread[i]); //free(tries_str);
     }
 
     return 0;
