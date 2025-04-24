@@ -1,11 +1,13 @@
+compiler = "gcc"
+
 bogosort.exe: bogosort.o pcg_basic.o
-	gcc -g bogosort.o pcg_basic.o -pthread -o bogosort.exe
+	$(compiler) -g bogosort.o pcg_basic.o -pthread -o bogosort.exe
+
+bogosort.o: bogosort.c
+	$(compiler) -c -Wall -Wno-uninitialized bogosort.c -pthread -o bogosort.o
+
+pcg_basic.o: pcg_basic.c pcg_basic.h
+	$(compiler) -c pcg_basic.c -o pcg_basic.o
 
 clean:
 	rm -rf *.o
-
-bogosort.o: bogosort.c
-	gcc -c -Wall -Wno-uninitialized bogosort.c -pthread -o bogosort.o
-
-pcg_basic.o: pcg_basic.c pcg_basic.h
-	gcc -c pcg_basic.c -o pcg_basic.o
