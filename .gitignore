@@ -1,6 +1,7 @@
 # Executables
 *.o
 *.exe
+/bogosort
 
 # VSCode stuffs
 .vscode
