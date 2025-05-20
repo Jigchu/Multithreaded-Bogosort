@@ -111,7 +111,7 @@ int main(int argc, const char *argv[]) {
         pthread_join(thread_ids[i], (void **)&tries_per_thread[i]);
     }
 
-    uint64_t total_tries;
+    uint64_t total_tries = 0;
     for (int i = 0; i < number_of_threads; i++) {
         total_tries += (tries_per_thread[i] == NULL) ? 0 : *tries_per_thread[i];
     }
@@ -226,6 +226,10 @@ bool ascending_comparison(int x, int y) { return x < y; }
 bool descending_comparison(int x, int y) { return x > y; }
 
 int number_of_digits(uint64_t x) {
+    if (x == 0) {
+        return 1;
+    }
+
     int digits = 0;
 
     while (x != 0) {
