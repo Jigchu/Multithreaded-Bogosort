@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 
 #include "pcg_basic.h"
@@ -59,7 +58,8 @@ int main(int argc, const char *argv[]) {
     }
 
     pcg32_random_t s;
-    pcg32_srandom_r(&s, time(NULL) ^ (intptr_t)&printf, (intptr_t)&array_length);
+    pcg32_srandom_r(&s, time(NULL) ^ (intptr_t)&printf,
+                    (intptr_t)&array_length);
     shuffle(&s, initial_array, array_length);
 
     printf("Original Array: [");
@@ -111,7 +111,7 @@ int main(int argc, const char *argv[]) {
         pthread_join(thread_ids[i], (void **)&tries_per_thread[i]);
     }
 
-    uint64_t total_tries = 0;
+    unsigned long long total_tries = 0;
     for (int i = 0; i < number_of_threads; i++) {
         total_tries += (tries_per_thread[i] == NULL) ? 0 : *tries_per_thread[i];
     }
@@ -120,7 +120,7 @@ int main(int argc, const char *argv[]) {
 
     printf("Arrays in each Thread:\n");
     for (int i = 0; i < number_of_threads; i++) {
-        printf("Thread %llu: [", thread_ids[i]);
+        printf("Thread %llu: [", (unsigned long long)thread_ids[i]);
         for (int j = 0; j < array_length; j++) {
             printf("%i", array_matrix[i][j]);
             if ((j + 1) != array_length) {
@@ -133,7 +133,7 @@ int main(int argc, const char *argv[]) {
     int tries_size = number_of_digits(total_tries);
 
     int tries_str_length =
-            ((tries_size % 3) == 0 ? -1 : 0) + (tries_size / 3) + tries_size;
+        ((tries_size % 3) == 0 ? -1 : 0) + (tries_size / 3) + tries_size;
 
     char tries_str[tries_str_length + 1];
     tries_str[tries_str_length] = '\0';
@@ -211,7 +211,7 @@ void shuffle(pcg32_random_t *rng, int *array, int length) {
 
 bool sorted(int *array, int length, bool ascending) {
     bool (*comparison_func)(int, int) =
-            ascending ? &ascending_comparison : &descending_comparison;
+        ascending ? &ascending_comparison : &descending_comparison;
     for (int i = 0; i < length - 1; i++) {
         if (!comparison_func(array[i], array[i + 1])) {
             return false;
@@ -239,4 +239,3 @@ int number_of_digits(uint64_t x) {
 
     return digits;
 }
-
